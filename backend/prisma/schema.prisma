@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String          @id @default(uuid())
+  email                String          @unique
+  password             String
+  name                 String
+  currentQualification String?
+  purchases            UserPurchases[]
+  sessions             Session[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  githubUser           GitHubLink?     @relation("UserGithub")
+  certificate          Certificate[]
+}
+model GitHubLink {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation("UserGithub", fields: [userId], references: [id], onDelete: Cascade)
+  githubId     String
+  username     String
+  avatarUrl    String?
+  access_token String
+  profileUrl   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Course {
+  id              Int             @id @default(autoincrement())
+  appxCourseId    String
+  discordRoleId   String
+  title           String
+  imageUrl        String
+  description     String
+  openToEveryone  Boolean         @default(false)
+  discordOauthUrl String          @default("")
+  content         CourseContent[]
+  purchasedBy     UserPurchases[]
+  certificate     Certificate[]
+  certIssued      Boolean         @default(false)
+}
+
+model UserPurchases {
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  course     Course   @relation(fields: [courseId], references: [id])
+  courseId   Int
+  assignedAt DateTime @default(now())
+
+  @@id([userId, courseId])
+}
+
+model Content {
+  id               Int             @id @default(autoincrement())
+  type             String          @default("folder")
+  title            String
+  hidden           Boolean         @default(false)
+  description      String?
+  thumbnail        String?
+  courses          CourseContent[]
+  createdAt        DateTime        @default(now())
+  notionMetadataId Int?
+}
+
+model CourseContent {
+  course    Course  @relation(fields: [courseId], references: [id])
+  courseId  Int
+  content   Content @relation(fields: [contentId], references: [id])
+  contentId Int
+
+  @@id([courseId, contentId])
+}
+
+model Certificate {
+  id       String @id @default(cuid())
+  slug     String @default("certId")
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  course   Course @relation(fields: [courseId], references: [id])
+  courseId Int
+
+  @@unique([userId, courseId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
